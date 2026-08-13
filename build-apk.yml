@@ -1,0 +1,53 @@
+name: Build Android APK
+
+# Runs automatically whenever you push changes to the main branch,
+# and can also be triggered manually from the Actions tab.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Generate Android project from the live site's manifest
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
+        # "yes ''" auto-accepts every default prompt bubblewrap asks,
+        # so this can run with no human sitting at a keyboard.
+        run: |
+          yes "" | bubblewrap init \
+            --manifest="https://radhikayadgire.github.io/CRM_TOOL/manifest.json" \
+            --directory="./android-build"
+
+      - name: Build the signed APK
+        working-directory: ./android-build
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.APK_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.APK_KEY_PASSWORD }}
+        run: |
+          yes "" | bubblewrap build
+
+      - name: Upload the APK so you can download it
+        uses: actions/upload-artifact@v4
+        with:
+          name: abhira-realtors-crm-apk
+          path: ./android-build/app-release-signed.apk
